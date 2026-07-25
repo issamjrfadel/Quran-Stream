@@ -19,9 +19,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: |
-          npm install
-          npm install @rollup/rollup-darwin-arm64 @rollup/rollup-darwin-x64 @esbuild/darwin-arm64 @esbuild/darwin-x64 --no-save || true
+        run: npm install --force
 
       - name: Build Web Application
         run: npm run build
