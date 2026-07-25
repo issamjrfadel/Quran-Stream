@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
@@ -29,6 +29,11 @@ jobs:
           npx cap add ios || true
           npx cap sync ios
 
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios/App
+          pod install || true
+
       - name: Build iOS App Xcode Project
         run: |
           cd ios/App
@@ -36,16 +41,22 @@ jobs:
                      -scheme App \
                      -sdk iphoneos \
                      -configuration Release \
+                     -derivedDataPath derived_data \
                      CODE_SIGNING_ALLOWED=NO \
                      CODE_SIGNING_REQUIRED=NO \
                      CODE_SIGN_IDENTITY="" \
-                     BUILD_DIR=build \
+                     AD_HOC_CODE_SIGNING_ALLOWED=YES \
+                     COMPILER_INDEX_STORE_ENABLE=NO \
                      clean build
 
       - name: Package into IPA
         run: |
           mkdir -p Payload
-          cp -r ios/App/build/Release-iphoneos/App.app Payload/
+          if [ -d "ios/App/derived_data/Build/Products/Release-iphoneos/App.app" ]; then
+            cp -r ios/App/derived_data/Build/Products/Release-iphoneos/App.app Payload/
+          elif [ -d "ios/App/build/Release-iphoneos/App.app" ]; then
+            cp -r ios/App/build/Release-iphoneos/App.app Payload/
+          fi
           zip -r QuranStream.ipa Payload
 
       - name: Upload IPA Artifact
@@ -53,3 +64,4 @@ jobs:
         with:
           name: QuranStream-iOS-IPA
           path: QuranStream.ipa
+
