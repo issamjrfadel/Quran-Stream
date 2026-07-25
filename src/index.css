@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .shadow-emerald-glow {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
+  }
+  .shadow-emerald-glow-lg {
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.35);
+  }
+  .bg-immersive-card {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  .border-immersive {
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* Custom sleek scrollbar for immersive layout */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.4);
+}

@@ -1,0 +1,21 @@
+{
+  "short_name": "Quran Auto",
+  "name": "Quran Stream - Car & Driver Edition",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=192&h=192&fit=crop&crop=faces",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=512&h=512&fit=crop&crop=faces",
+      "type": "image/jpeg",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#05070A",
+  "theme_color": "#05070A",
+  "display": "standalone",
+  "orientation": "any"
+}

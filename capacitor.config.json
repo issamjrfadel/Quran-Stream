@@ -1,0 +1,14 @@
+{
+  "appId": "com.quranstream.auto",
+  "appName": "Quran Stream",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}

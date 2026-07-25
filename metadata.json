@@ -1,0 +1,6 @@
+{
+  "name": "Quran Stream - Android Auto",
+  "description": "Driver-optimized Quran audio streaming application with Android Auto car mode, offline downloads, reciter options, and voice commands.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
