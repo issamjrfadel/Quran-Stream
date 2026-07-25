@@ -19,7 +19,9 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --force
+        run: |
+          npm install --include=optional
+          npm rebuild
 
       - name: Build Web Application
         run: npm run build
