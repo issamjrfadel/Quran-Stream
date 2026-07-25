@@ -33,31 +33,53 @@ jobs:
 
       - name: Install CocoaPods dependencies
         run: |
-          cd ios/App
-          pod install || true
+          if [ -d "ios/App" ]; then
+            cd ios/App
+            pod install || pod install --repo-update || true
+          fi
 
       - name: Build iOS App Xcode Project
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
-                     -scheme App \
-                     -sdk iphoneos \
-                     -configuration Release \
-                     -derivedDataPath derived_data \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGN_IDENTITY="" \
-                     AD_HOC_CODE_SIGNING_ALLOWED=YES \
-                     COMPILER_INDEX_STORE_ENABLE=NO \
-                     clean build
+          if [ -d "App.xcworkspace" ]; then
+            xcodebuild -workspace App.xcworkspace \
+                       -scheme App \
+                       -sdk iphoneos \
+                       -configuration Release \
+                       -derivedDataPath derived_data \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       CODE_SIGN_IDENTITY="" \
+                       AD_HOC_CODE_SIGNING_ALLOWED=YES \
+                       COMPILER_INDEX_STORE_ENABLE=NO \
+                       clean build
+          elif [ -f "App.xcodeproj/project.pbxproj" ]; then
+            xcodebuild -project App.xcodeproj \
+                       -scheme App \
+                       -sdk iphoneos \
+                       -configuration Release \
+                       -derivedDataPath derived_data \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       CODE_SIGN_IDENTITY="" \
+                       AD_HOC_CODE_SIGNING_ALLOWED=YES \
+                       COMPILER_INDEX_STORE_ENABLE=NO \
+                       clean build
+          else
+            echo "Neither App.xcworkspace nor App.xcodeproj found in ios/App"
+            exit 1
+          fi
 
       - name: Package into IPA
         run: |
           mkdir -p Payload
-          if [ -d "ios/App/derived_data/Build/Products/Release-iphoneos/App.app" ]; then
-            cp -r ios/App/derived_data/Build/Products/Release-iphoneos/App.app Payload/
-          elif [ -d "ios/App/build/Release-iphoneos/App.app" ]; then
-            cp -r ios/App/build/Release-iphoneos/App.app Payload/
+          APP_PATH=$(find ios/App -name "App.app" -type d | head -n 1)
+          if [ -n "$APP_PATH" ]; then
+            echo "Found App.app at $APP_PATH"
+            cp -r "$APP_PATH" Payload/
+          else
+            echo "Could not find App.app"
+            exit 1
           fi
           zip -r QuranStream.ipa Payload
 
