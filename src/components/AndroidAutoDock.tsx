@@ -1,5 +1,6 @@
 import React from 'react';
 import { Music, BookOpen, Layers, Users, DownloadCloud, Gauge, Sparkles } from 'lucide-react';
+import { TRANSLATIONS, Language } from '../lib/translations';
 
 export type ActiveTab = 'player' | 'surahs' | 'juz' | 'reciters' | 'offline' | 'hud';
 
@@ -11,6 +12,7 @@ interface AndroidAutoDockProps {
   currentSurahName?: string;
   isPlaying?: boolean;
   onOpenVoiceModal: () => void;
+  language: Language;
 }
 
 export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
@@ -21,14 +23,17 @@ export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
   currentSurahName,
   isPlaying,
   onOpenVoiceModal,
+  language,
 }) => {
+  const t = TRANSLATIONS[language];
+
   const tabs = [
-    { id: 'player', label: 'Now Playing', icon: Music, badge: isPlaying ? '●' : undefined },
-    { id: 'surahs', label: '114 Surahs', icon: BookOpen },
-    { id: 'juz', label: '30 Juz', icon: Layers },
-    { id: 'reciters', label: 'Reciters', icon: Users },
-    { id: 'offline', label: 'Offline', icon: DownloadCloud, badge: downloadedCount > 0 ? downloadedCount : undefined },
-    { id: 'hud', label: 'Car HUD', icon: Gauge },
+    { id: 'player', label: t.player, icon: Music, badge: isPlaying ? '●' : undefined },
+    { id: 'surahs', label: t.surahs, icon: BookOpen },
+    { id: 'juz', label: t.juz, icon: Layers },
+    { id: 'reciters', label: t.reciters, icon: Users },
+    { id: 'offline', label: t.offline, icon: DownloadCloud, badge: downloadedCount > 0 ? downloadedCount : undefined },
+    { id: 'hud', label: t.hud, icon: Gauge },
   ];
 
   return (
@@ -39,6 +44,7 @@ export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
           ? 'bg-stone-200 border-stone-300 text-stone-800'
           : 'bg-[#0D1117] border-white/5 text-stone-200'
       }`}
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
       {/* Brand logo in sidebar mode */}
       <div className="hidden md:flex items-center gap-3 p-3 mb-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-emerald-glow">
@@ -46,8 +52,8 @@ export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
           ق
         </div>
         <div>
-          <h1 className="font-bold text-sm tracking-wide text-emerald-400">Quran Auto</h1>
-          <p className="text-[11px] opacity-70">Driver Edition</p>
+          <h1 className="font-bold text-sm tracking-wide text-emerald-400">{t.appName}</h1>
+          <p className="text-[11px] opacity-70">{language === 'ar' ? 'نسخة السيارة' : 'Driver Edition'}</p>
         </div>
       </div>
 
@@ -87,7 +93,7 @@ export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
           className="w-full flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md hover:opacity-90 active:scale-95 transition-all text-sm font-semibold"
         >
           <Sparkles className="w-5 h-5 text-amber-300" />
-          <span>AI Assistant</span>
+          <span>{t.voiceCommand}</span>
         </button>
       </div>
     </nav>

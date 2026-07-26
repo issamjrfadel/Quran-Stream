@@ -14,10 +14,10 @@ import { AudioPlayerController } from './components/AudioPlayerController';
 import {
   getAllDownloadedSurahs,
   downloadAndCacheSurah,
-  getOfflineSurahBlobUrl,
 } from './lib/offlineStorage';
 import { parseVoiceCommandLocally } from './lib/voiceParser';
-import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Language, TRANSLATIONS } from './lib/translations';
+import { Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('player');
@@ -33,6 +33,7 @@ export default function App() {
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
 
   const [isDayMode, setIsDayMode] = useState<boolean>(false);
+  const [isAutoLightSensor, setIsAutoLightSensor] = useState<boolean>(true);
   const [isHudMode, setIsHudMode] = useState<boolean>(false);
   const [simulatedOfflineMode, setSimulatedOfflineMode] = useState<boolean>(false);
 
@@ -42,6 +43,80 @@ export default function App() {
 
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Multi-Language State (Default English or stored choice)
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('quran_auto_lang');
+    return (saved === 'ar' || saved === 'en') ? saved : 'en';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('quran_auto_lang', language);
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [language]);
+
+  // Car Ambient Light Sensor & System Dark/Day Auto Switching
+  useEffect(() => {
+    if (!isAutoLightSensor) return;
+
+    let ambientSensor: any = null;
+
+    // 1. Try W3C AmbientLightSensor API if available (in supported car head units/Android browser)
+    if ('AmbientLightSensor' in window) {
+      try {
+        const Sensor = (window as any).AmbientLightSensor;
+        ambientSensor = new Sensor({ frequency: 1 });
+        ambientSensor.addEventListener('reading', () => {
+          const lux = ambientSensor.illuminance;
+          // Tunnel or dark night -> Dark mode, bright daylight -> Day mode
+          if (lux < 30) {
+            setIsDayMode(false);
+          } else if (lux >= 30) {
+            setIsDayMode(true);
+          }
+        });
+        ambientSensor.start();
+      } catch (e) {
+        console.warn('AmbientLightSensor initialization fallback:', e);
+      }
+    }
+
+    // 2. System prefers-color-scheme / Android Auto Dark Mode query listener
+    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSchemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (isAutoLightSensor && !ambientSensor) {
+        setIsDayMode(!e.matches);
+      }
+    };
+
+    colorSchemeQuery.addEventListener('change', handleSchemeChange);
+
+    // 3. Solar / Local Time Fallback if no light sensor
+    const updateTimeBasedTheme = () => {
+      if (!isAutoLightSensor || ambientSensor) return;
+      const hours = new Date().getHours();
+      // Between 7 PM (19:00) and 6 AM (06:00) -> Night/Dark mode
+      if (hours >= 19 || hours < 6) {
+        setIsDayMode(false);
+      } else {
+        setIsDayMode(true);
+      }
+    };
+
+    updateTimeBasedTheme();
+    const interval = setInterval(updateTimeBasedTheme, 60000);
+
+    return () => {
+      colorSchemeQuery.removeEventListener('change', handleSchemeChange);
+      clearInterval(interval);
+      if (ambientSensor) {
+        try {
+          ambientSensor.stop();
+        } catch (e) {}
+      }
+    };
+  }, [isAutoLightSensor]);
 
   // Load downloaded Surah list on launch
   const refreshDownloadedList = async () => {
@@ -65,11 +140,16 @@ export default function App() {
     const timeout = setTimeout(() => {
       setIsPlaying(false);
       setSleepTimerMinutes(null);
-      showToast('Sleep timer reached. Audio paused.');
+      showToast(language === 'ar' ? 'انتهت مدة مؤقت النوم. تم إيقاف الصوت.' : 'Sleep timer reached. Audio paused.');
     }, sleepTimerMinutes * 60 * 1000);
 
     return () => clearTimeout(timeout);
-  }, [sleepTimerMinutes]);
+  }, [sleepTimerMinutes, language]);
+
+  // Pause audio function (used when driver starts voice input or opens voice modal)
+  const handlePauseAudio = () => {
+    setIsPlaying(false);
+  };
 
   // Handle Play/Pause
   const handlePlayPause = () => {
@@ -100,7 +180,7 @@ export default function App() {
     const nextIndex = (currentIndex + 1) % SURAHS.length;
     setCurrentSurah(SURAHS[nextIndex]);
     setIsPlaying(true);
-    showToast(`Now Playing: Surah #${SURAHS[nextIndex].id} ${SURAHS[nextIndex].englishName}`);
+    showToast(language === 'ar' ? `يتلى الآن: سورة ${SURAHS[nextIndex].name}` : `Now Playing: Surah #${SURAHS[nextIndex].id} ${SURAHS[nextIndex].englishName}`);
   };
 
   // Previous Surah
@@ -109,7 +189,7 @@ export default function App() {
     const prevIndex = (currentIndex - 1 + SURAHS.length) % SURAHS.length;
     setCurrentSurah(SURAHS[prevIndex]);
     setIsPlaying(true);
-    showToast(`Now Playing: Surah #${SURAHS[prevIndex].id} ${SURAHS[prevIndex].englishName}`);
+    showToast(language === 'ar' ? `يتلى الآن: سورة ${SURAHS[prevIndex].name}` : `Now Playing: Surah #${SURAHS[prevIndex].id} ${SURAHS[prevIndex].englishName}`);
   };
 
   // Select Surah
@@ -117,7 +197,7 @@ export default function App() {
     setCurrentSurah(surah);
     setIsPlaying(true);
     setActiveTab('player');
-    showToast(`Loaded Surah #${surah.id} ${surah.englishName}`);
+    showToast(language === 'ar' ? `تم تحميل سورة ${surah.name}` : `Loaded Surah #${surah.id} ${surah.englishName}`);
   };
 
   // Select Surah by ID
@@ -131,7 +211,7 @@ export default function App() {
   // Select Reciter
   const handleSelectReciter = (reciter: Reciter) => {
     setCurrentReciter(reciter);
-    showToast(`Changed Reciter to ${reciter.name}`);
+    showToast(language === 'ar' ? `تم تغيير القارئ إلى ${reciter.arabicName}` : `Changed Reciter to ${reciter.name}`);
   };
 
   // Download Surah for Offline
@@ -139,7 +219,7 @@ export default function App() {
     try {
       setDownloadingSurahId(surah.id);
       setDownloadProgress(0);
-      showToast(`Downloading Surah ${surah.englishName} for offline storage...`);
+      showToast(language === 'ar' ? `جاري تحميل سورة ${surah.name}...` : `Downloading Surah ${surah.englishName} for offline storage...`);
 
       await downloadAndCacheSurah(surah.id, currentReciter, (percent) => {
         setDownloadProgress(percent);
@@ -148,7 +228,7 @@ export default function App() {
       await refreshDownloadedList();
       setDownloadingSurahId(null);
       setDownloadProgress(null);
-      showToast(`Surah ${surah.englishName} saved for offline listening!`);
+      showToast(language === 'ar' ? `تم حفظ سورة ${surah.name} للاستماع بدون إنترنت!` : `Surah ${surah.englishName} saved for offline listening!`);
     } catch (err: any) {
       setDownloadingSurahId(null);
       setDownloadProgress(null);
@@ -158,13 +238,13 @@ export default function App() {
 
   // Batch Download Driver Pack
   const handleBatchDownloadSurahs = async (surahsToDownload: Surah[]) => {
-    showToast(`Starting batch download for ${surahsToDownload.length} Surahs...`);
+    showToast(language === 'ar' ? `جاري تحميل ${surahsToDownload.length} سورة...` : `Starting batch download for ${surahsToDownload.length} Surahs...`);
     for (const s of surahsToDownload) {
       if (!downloadedIds.includes(s.id)) {
         await handleDownloadSurah(s);
       }
     }
-    showToast('Essential Driver Pack downloaded completely!');
+    showToast(language === 'ar' ? 'تم اكتمال تحميل باقة القيادة!' : 'Essential Driver Pack downloaded completely!');
   };
 
   // Voice Command Processor via Express Gemini backend with native/offline fallback
@@ -222,20 +302,35 @@ export default function App() {
       className={`h-screen w-screen flex flex-col font-sans transition-colors overflow-hidden ${
         isDayMode ? 'bg-stone-50 text-stone-900' : 'bg-[#05070A] text-stone-100'
       }`}
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
       {/* Driver Header Status Bar */}
       <AndroidAutoHeader
         isDayMode={isDayMode}
-        onToggleDayMode={() => setIsDayMode(!isDayMode)}
+        onToggleDayMode={() => {
+          setIsAutoLightSensor(false);
+          setIsDayMode(!isDayMode);
+        }}
+        isAutoLightSensor={isAutoLightSensor}
+        onToggleAutoLightSensor={() => {
+          const next = !isAutoLightSensor;
+          setIsAutoLightSensor(next);
+          showToast(next ? (language === 'ar' ? 'مستشعار الإضاءة التلقائي مفعل' : 'Auto Light Sensor Activated') : (language === 'ar' ? 'التحكم اليدوي بالإضاءة مفعل' : 'Manual Day/Night Mode'));
+        }}
         isHudMode={isHudMode}
         onToggleHudMode={() => setIsHudMode(true)}
-        onOpenVoiceAssistant={() => setIsVoiceModalOpen(true)}
+        onOpenVoiceAssistant={() => {
+          handlePauseAudio();
+          setIsVoiceModalOpen(true);
+        }}
         downloadedCount={downloadedIds.length}
         simulatedOfflineMode={simulatedOfflineMode}
         onToggleOfflineSim={() => {
           setSimulatedOfflineMode(!simulatedOfflineMode);
-          showToast(!simulatedOfflineMode ? 'Offline Test Enabled (No Internet)' : 'Online Streaming Mode');
+          showToast(!simulatedOfflineMode ? (language === 'ar' ? 'تم تفعيل وضع الأوفلاين التجريبي' : 'Offline Test Enabled (No Internet)') : (language === 'ar' ? 'وضع الاستماع عبر الإنترنت' : 'Online Streaming Mode'));
         }}
+        language={language}
+        onToggleLanguage={() => setLanguage(language === 'en' ? 'ar' : 'en')}
       />
 
       {/* Main Container with Sidebar Navigation Dock */}
@@ -253,7 +348,11 @@ export default function App() {
           downloadedCount={downloadedIds.length}
           currentSurahName={currentSurah.englishName}
           isPlaying={isPlaying}
-          onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
+          onOpenVoiceModal={() => {
+            handlePauseAudio();
+            setIsVoiceModalOpen(true);
+          }}
+          language={language}
         />
 
         {/* Tab Content Router */}
@@ -289,7 +388,10 @@ export default function App() {
               onDownloadSurah={() => handleDownloadSurah(currentSurah)}
               onOpenReciterSelector={() => setActiveTab('reciters')}
               onSetSleepTimer={(mins) => setSleepTimerMinutes(mins)}
-              onOpenVoiceAssistant={() => setIsVoiceModalOpen(true)}
+              onOpenVoiceAssistant={() => {
+                handlePauseAudio();
+                setIsVoiceModalOpen(true);
+              }}
             />
           )}
 
@@ -380,6 +482,9 @@ export default function App() {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         onProcessCommand={handleProcessVoiceCommand}
+        onPauseAudio={handlePauseAudio}
+        language={language}
+        onToggleLanguage={() => setLanguage(language === 'en' ? 'ar' : 'en')}
       />
 
       {/* Full-Screen Car HUD Gauge View */}

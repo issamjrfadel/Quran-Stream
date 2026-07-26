@@ -1,28 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Battery, Moon, Sun, Mic, Gauge, HardDrive, AlertTriangle } from 'lucide-react';
+import { Wifi, Battery, Moon, Sun, Mic, Gauge, HardDrive, AlertTriangle, Languages, Eye } from 'lucide-react';
+import { TRANSLATIONS, Language } from '../lib/translations';
 
 interface AndroidAutoHeaderProps {
   isDayMode: boolean;
   onToggleDayMode: () => void;
+  isAutoLightSensor: boolean;
+  onToggleAutoLightSensor: () => void;
   isHudMode: boolean;
   onToggleHudMode: () => void;
   onOpenVoiceAssistant: () => void;
   downloadedCount: number;
   simulatedOfflineMode: boolean;
   onToggleOfflineSim: () => void;
+  language: Language;
+  onToggleLanguage: () => void;
 }
 
 export const AndroidAutoHeader: React.FC<AndroidAutoHeaderProps> = ({
   isDayMode,
   onToggleDayMode,
+  isAutoLightSensor,
+  onToggleAutoLightSensor,
   isHudMode,
   onToggleHudMode,
   onOpenVoiceAssistant,
   downloadedCount,
   simulatedOfflineMode,
   onToggleOfflineSim,
+  language,
+  onToggleLanguage,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
+  const t = TRANSLATIONS[language];
 
   useEffect(() => {
     const updateTime = () => {
@@ -44,39 +54,54 @@ export const AndroidAutoHeader: React.FC<AndroidAutoHeaderProps> = ({
       }`}
     >
       {/* Left: Clock & Android Auto Vehicle Status */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <div className="text-xl font-bold tracking-tight font-mono">{timeStr}</div>
         <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Android Auto Connected</span>
+          <span>{t.connected}</span>
         </div>
 
         {simulatedOfflineMode && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold">
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>OFFLINE SIMULATION</span>
+            <span>{t.offlineActive}</span>
           </div>
         )}
       </div>
 
-      {/* Right Controls: Voice Mic, Offline Sim, Day/Night, HUD */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Right Controls: Language, Voice Mic, Offline Sim, Day/Night, Auto Sensor, HUD */}
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Language Switcher */}
+        <button
+          id="btn-toggle-language"
+          onClick={onToggleLanguage}
+          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold border transition-all min-h-[44px] ${
+            isDayMode
+              ? 'bg-stone-200 text-stone-800 border-stone-300 hover:bg-stone-300'
+              : 'bg-stone-800 text-emerald-400 border-stone-700 hover:bg-stone-700'
+          }`}
+          title="Switch App Language (English / العربية)"
+        >
+          <Languages className="w-4 h-4" />
+          <span className="font-sans">{language === 'en' ? 'عربي' : 'EN'}</span>
+        </button>
+
         {/* Voice Assistant Mic Button */}
         <button
           id="btn-voice-assistant"
           onClick={onOpenVoiceAssistant}
           className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-all shadow-md active:scale-95 touch-manipulation min-h-[44px]"
-          title="Voice Control / Ask Assistant"
+          title={t.voiceCommand}
         >
           <Mic className="w-4 h-4 animate-bounce" />
-          <span className="hidden md:inline font-semibold">Voice Command</span>
+          <span className="hidden md:inline font-semibold">{t.voiceCommand}</span>
         </button>
 
         {/* Offline Sim Toggle */}
         <button
           id="btn-toggle-offline-sim"
           onClick={onToggleOfflineSim}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[44px] ${
+          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[44px] ${
             simulatedOfflineMode
               ? 'bg-amber-600 text-white border-amber-500'
               : isDayMode
@@ -86,11 +111,29 @@ export const AndroidAutoHeader: React.FC<AndroidAutoHeaderProps> = ({
           title="Toggle Simulated No-Internet Offline Mode"
         >
           <HardDrive className="w-4 h-4" />
-          <span className="hidden lg:inline">{simulatedOfflineMode ? 'Offline Active' : 'Test Offline'}</span>
+          <span className="hidden lg:inline">{simulatedOfflineMode ? t.offlineActive : t.offlineSim}</span>
           <span className="px-1.5 py-0.5 rounded bg-black/20 text-[10px]">{downloadedCount}</span>
         </button>
 
-        {/* Day / Night Drive Mode */}
+        {/* Auto Sensor Mode Button */}
+        <button
+          id="btn-toggle-auto-sensor"
+          onClick={onToggleAutoLightSensor}
+          className={`flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all min-h-[44px] ${
+            isAutoLightSensor
+              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/50'
+              : isDayMode
+              ? 'bg-stone-200 text-stone-600 border-stone-300'
+              : 'bg-stone-800 text-stone-400 border-stone-700'
+          }`}
+          title={t.autoSensorActive}
+        >
+          <Eye className={`w-3.5 h-3.5 ${isAutoLightSensor ? 'text-emerald-400 animate-pulse' : ''}`} />
+          <span className="hidden xl:inline">{t.autoSensor}</span>
+          {isAutoLightSensor && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />}
+        </button>
+
+        {/* Manual Day / Night Override Switch */}
         <button
           id="btn-toggle-day-night"
           onClick={onToggleDayMode}

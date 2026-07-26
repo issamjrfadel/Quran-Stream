@@ -1,25 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Sparkles, X, Volume2, Send, Zap, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, Sparkles, X, Volume2, Send, Languages } from 'lucide-react';
 import { VoiceCommandResponse } from '../types';
+import { TRANSLATIONS, Language } from '../lib/translations';
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   onProcessCommand: (transcript: string) => Promise<VoiceCommandResponse | null>;
+  onPauseAudio?: () => void;
+  language: Language;
+  onToggleLanguage?: () => void;
 }
 
 export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   isOpen,
   onClose,
   onProcessCommand,
+  onPauseAudio,
+  language,
+  onToggleLanguage,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcriptInput, setTranscriptInput] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Listening for driver command...');
+  const [statusMessage, setStatusMessage] = useState('');
   const [aiSpeechResponse, setAiSpeechResponse] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [micLanguage, setMicLanguage] = useState<'ar-SA' | 'en-US'>(
+    language === 'ar' ? 'ar-SA' : 'en-US'
+  );
 
-  // Web Speech API initialization with getUserMedia permission prompt
+  const t = TRANSLATIONS[language];
+
+  // Sync micLanguage if language prop changes
+  useEffect(() => {
+    setMicLanguage(language === 'ar' ? 'ar-SA' : 'en-US');
+  }, [language]);
+
+  // Web Speech API initialization & auto pause audio
   useEffect(() => {
     if (!isOpen) {
       setIsListening(false);
@@ -27,20 +44,26 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       return;
     }
 
+    // 1. Immediately pause audio playback while providing voice input
+    if (onPauseAudio) {
+      onPauseAudio();
+    }
+
+    setStatusMessage(t.pausedForMic);
+
     let recognition: any = null;
     let isActive = true;
 
     const initSpeech = async () => {
-      // 1. Request getUserMedia to prompt iOS/Browser native microphone permission dialog
+      // Prompt user media permission
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          // Stop track immediately as recognition handles audio capture
           stream.getTracks().forEach((track) => track.stop());
         } catch (err: any) {
           console.warn('getUserMedia mic permission error:', err);
           if (isActive) {
-            setStatusMessage('Microphone access blocked. Tap the mic button to grant permission or type below.');
+            setStatusMessage(t.micBlocked);
           }
         }
       }
@@ -52,12 +75,12 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        recognition.lang = micLanguage;
 
         recognition.onstart = () => {
           if (!isActive) return;
           setIsListening(true);
-          setStatusMessage('Listening... Speak now (e.g. "Play Surah Al-Kahf")');
+          setStatusMessage(t.listening);
         };
 
         recognition.onresult = (event: any) => {
@@ -71,11 +94,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         recognition.onerror = (event: any) => {
           if (!isActive) return;
           setIsListening(false);
-          if (event.error === 'not-allowed') {
-            setStatusMessage('Mic permission notice: blocked by browser/iOS. Tap mic or type below.');
-          } else {
-            setStatusMessage(`Mic notice: ${event.error}. You can also type commands below.`);
-          }
+          setStatusMessage(`${t.micBlocked} (${event.error})`);
         };
 
         recognition.onend = () => {
@@ -86,10 +105,10 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         try {
           recognition.start();
         } catch (err) {
-          // mic already active or blocked
+          // mic already active
         }
       } else {
-        setStatusMessage('Voice recognition not supported in browser. Use typed shortcut commands below.');
+        setStatusMessage(language === 'ar' ? 'البحث الصوتي غير مدعوم في هذا المتصفح. يمكنك الكتابة أدناه.' : 'Speech recognition not supported in browser. Use typed commands below.');
       }
     };
 
@@ -103,22 +122,26 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         } catch (e) {}
       }
     };
-  }, [isOpen]);
+  }, [isOpen, micLanguage]);
 
   const handleMicClick = async () => {
+    // 1. Pause audio whenever driver triggers mic again
+    if (onPauseAudio) {
+      onPauseAudio();
+    }
+
     if (transcriptInput.trim()) {
       handleExecute(transcriptInput);
       return;
     }
 
-    // Attempt to explicitly request microphone permission again
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        setStatusMessage('Requesting microphone access...');
+        setStatusMessage(language === 'ar' ? 'جاري طلب إذن الوصول للميكروفون...' : 'Requesting microphone access...');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (err: any) {
-        setStatusMessage('Microphone permission denied in iOS/device settings.');
+        setStatusMessage(t.micBlocked);
         return;
       }
     }
@@ -129,11 +152,11 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        recognition.lang = micLanguage;
 
         recognition.onstart = () => {
           setIsListening(true);
-          setStatusMessage('Listening... Speak now!');
+          setStatusMessage(t.listening);
         };
 
         recognition.onresult = (event: any) => {
@@ -145,7 +168,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
         recognition.onerror = (event: any) => {
           setIsListening(false);
-          setStatusMessage(`Mic notice: ${event.error}. Use typed commands below.`);
+          setStatusMessage(`${t.micBlocked} (${event.error})`);
         };
 
         recognition.onend = () => {
@@ -163,60 +186,72 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const handleExecute = async (commandText: string) => {
     if (!commandText.trim()) return;
+
+    // Ensure audio stays paused during processing
+    if (onPauseAudio) {
+      onPauseAudio();
+    }
+
     setIsProcessing(true);
-    setStatusMessage('Analyzing command with Gemini AI...');
+    setStatusMessage(language === 'ar' ? 'جاري تحليل الأمر بالذكاء الاصطناعي...' : 'Analyzing command with Gemini AI...');
 
     const response = await onProcessCommand(commandText);
     setIsProcessing(false);
 
     if (response) {
       setAiSpeechResponse(response.speechResponse);
-      setStatusMessage(`Action executed: ${response.action}`);
+      setStatusMessage(language === 'ar' ? `تم التنفيذ: ${response.action}` : `Action executed: ${response.action}`);
 
       // Text-to-Speech playback for hands-free feedback
       if ('speechSynthesis' in window && response.speechResponse) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(response.speechResponse);
+        utterance.lang = micLanguage;
         utterance.rate = 1.0;
         window.speechSynthesis.speak(utterance);
       }
 
-      // Auto close modal after 3 seconds if successfully triggered playback or action
+      // Auto close modal after 3 seconds
       setTimeout(() => {
         onClose();
       }, 3000);
     } else {
-      setStatusMessage('Sorry, could not process command. Please try again.');
+      setStatusMessage(language === 'ar' ? 'عذراً، تعذر تنفيذ الأمر. حاول مرة أخرى.' : 'Sorry, could not process command. Please try again.');
     }
   };
 
-  const presetCommands = [
-    'Play Surah Ya-Sin',
-    'Play Surah Al-Kahf by Abdul Basit',
-    'Switch reciter to Maher Al-Muaiqly',
-    'Explain Surah Ar-Rahman',
-    'Set sleep timer for 30 minutes',
-    'Enable Car HUD Mode',
-  ];
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 safe-py safe-px animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 safe-py safe-px animate-fadeIn select-none" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="w-full max-w-lg bg-stone-900 border border-stone-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-stone-100 relative space-y-6">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Top Controls: Language Switcher & Close */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => {
+              if (onToggleLanguage) onToggleLanguage();
+              setMicLanguage((prev) => (prev === 'ar-SA' ? 'en-US' : 'ar-SA'));
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-emerald-400 border border-stone-700 text-xs font-bold transition-all"
+            title="Switch Voice Input Language (العربية / English)"
+          >
+            <Languages className="w-4 h-4" />
+            <span>{micLanguage === 'ar-SA' ? 'العربية (Arabic Mic)' : 'English (Mic)'}</span>
+          </button>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Android Auto AI Assistant</span>
+            <span>{t.assistantSubtitle}</span>
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight">Driver Voice Control</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">{t.assistantTitle}</h2>
         </div>
 
         {/* Glowing Microphone Visualizer */}
@@ -234,7 +269,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
               <span className="absolute inset-0 rounded-full border-4 border-emerald-400/60 animate-ping" />
             )}
           </button>
-          <p className="text-xs font-semibold text-stone-400 mt-4 text-center max-w-xs">{statusMessage}</p>
+          <p className="text-xs font-semibold text-stone-300 mt-4 text-center max-w-xs">{statusMessage}</p>
         </div>
 
         {/* AI Voice Response Output */}
@@ -242,7 +277,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-center space-y-1 animate-fadeIn">
             <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
               <Volume2 className="w-4 h-4 animate-bounce" />
-              <span>Assistant Speaking</span>
+              <span>{language === 'ar' ? 'المساعد يتحدث' : 'Assistant Speaking'}</span>
             </p>
             <p className="text-sm font-semibold text-stone-100">{aiSpeechResponse}</p>
           </div>
@@ -252,7 +287,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder="Type voice command..."
+            placeholder={t.inputPlaceholder}
             value={transcriptInput}
             onChange={(e) => setTranscriptInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleExecute(transcriptInput)}
@@ -269,9 +304,9 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
         {/* Shortcut Quick Action Chips */}
         <div className="space-y-2 pt-2 border-t border-stone-800/60">
-          <p className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Tap preset driver shortcuts:</p>
+          <p className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">{t.presetTitle}</p>
           <div className="flex flex-wrap gap-2">
-            {presetCommands.map((cmd) => (
+            {t.presetCommands.map((cmd) => (
               <button
                 key={cmd}
                 onClick={() => {
