@@ -37,7 +37,7 @@ export const AndroidAutoHeader: React.FC<AndroidAutoHeaderProps> = ({
   return (
     <header
       id="android-auto-header"
-      className={`h-16 px-4 md:px-6 flex items-center justify-between border-b transition-colors select-none z-30 ${
+      className={`min-h-[4rem] py-2 px-4 md:px-6 safe-pt safe-px flex items-center justify-between border-b transition-colors select-none z-30 ${
         isDayMode
           ? 'bg-stone-100/90 text-stone-900 border-stone-200'
           : 'bg-[#0D1117]/90 text-stone-100 border-white/5 backdrop-blur-md'

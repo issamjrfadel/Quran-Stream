@@ -34,7 +34,7 @@ export const AndroidAutoDock: React.FC<AndroidAutoDockProps> = ({
   return (
     <nav
       id="android-auto-dock"
-      className={`flex md:flex-col justify-around md:justify-start gap-1 p-2 border-t md:border-t-0 md:border-r transition-colors select-none z-20 ${
+      className={`flex md:flex-col justify-around md:justify-start gap-1 p-2 safe-px md:safe-pl safe-pb border-t md:border-t-0 md:border-r transition-colors select-none z-20 ${
         isDayMode
           ? 'bg-stone-200 border-stone-300 text-stone-800'
           : 'bg-[#0D1117] border-white/5 text-stone-200'

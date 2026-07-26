@@ -35,7 +35,7 @@ export const CarHudModeView: React.FC<CarHudModeViewProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between p-6 md:p-10 select-none animate-fadeIn">
+    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between p-6 md:p-10 safe-py safe-px select-none animate-fadeIn">
       {/* Top Bar: HUD Header */}
       <div className="flex items-center justify-between border-b border-stone-800 pb-4">
         <div className="flex items-center gap-3">

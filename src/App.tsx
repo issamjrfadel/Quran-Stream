@@ -246,7 +246,7 @@ export default function App() {
         />
 
         {/* Tab Content Router */}
-        <main className="flex-1 flex flex-col overflow-hidden relative">
+        <main className="flex-1 flex flex-col overflow-hidden relative safe-px safe-pb">
           {activeTab === 'player' && (
             <NowPlayingView
               surah={currentSurah}

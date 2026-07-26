@@ -13,6 +13,26 @@
   .border-immersive {
     border-color: rgba(255, 255, 255, 0.07);
   }
+  .safe-pt {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+  .safe-pb {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  .safe-pl {
+    padding-left: max(0px, env(safe-area-inset-left));
+  }
+  .safe-pr {
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+  .safe-px {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+  .safe-py {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
 }
 
 /* Custom sleek scrollbar for immersive layout */
