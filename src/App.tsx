@@ -16,6 +16,7 @@ import {
   downloadAndCacheSurah,
   getOfflineSurahBlobUrl,
 } from './lib/offlineStorage';
+import { parseVoiceCommandLocally } from './lib/voiceParser';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -166,19 +167,30 @@ export default function App() {
     showToast('Essential Driver Pack downloaded completely!');
   };
 
-  // Voice Command Processor via Express Gemini backend
+  // Voice Command Processor via Express Gemini backend with native/offline fallback
   const handleProcessVoiceCommand = async (transcript: string): Promise<VoiceCommandResponse | null> => {
+    let data: VoiceCommandResponse | null = null;
+
     try {
       const res = await fetch('/api/voice-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript }),
       });
-      if (!res.ok) throw new Error('Failed to reach AI voice backend');
+      if (res.ok) {
+        data = await res.json();
+      }
+    } catch (err: any) {
+      console.warn('Voice command server unavailable, using local parser:', err);
+    }
 
-      const data: VoiceCommandResponse = await res.json();
+    // Fallback to client-side local parser if server response failed or wasn't ok
+    if (!data || !data.action) {
+      data = parseVoiceCommandLocally(transcript);
+    }
 
-      // Execute returned action
+    // Execute returned action
+    if (data) {
       if (data.action === 'PLAY_SURAH' && data.surahNumber) {
         handleSelectSurahById(data.surahNumber);
       } else if (data.action === 'DOWNLOAD_SURAH' && data.surahNumber) {
@@ -195,13 +207,12 @@ export default function App() {
         setIsPlaying(true);
       } else if (data.action === 'SET_SLEEP_TIMER' && data.minutes) {
         setSleepTimerMinutes(data.minutes);
+      } else if (data.action === 'EXPLAIN_SURAH' && data.surahNumber) {
+        handleSelectSurahById(data.surahNumber);
       }
-
-      return data;
-    } catch (err: any) {
-      console.error('Voice command error:', err);
-      return null;
     }
+
+    return data;
   };
 
   const isCurrentSurahDownloaded = downloadedIds.includes(currentSurah.id);
