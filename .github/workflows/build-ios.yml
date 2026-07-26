@@ -30,6 +30,11 @@ jobs:
         run: |
           npx cap add ios || true
           npx cap sync ios
+          if [ -f "ios/App/App/Info.plist" ]; then
+            echo "Configuring iOS Info.plist permissions..."
+            /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Quran Stream needs microphone access to listen to driver voice commands.'" ios/App/App/Info.plist || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Quran Stream needs microphone access to listen to driver voice commands.'" ios/App/App/Info.plist
+            /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'Quran Stream needs speech recognition permission to process driver voice commands.'" ios/App/App/Info.plist || /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'Quran Stream needs speech recognition permission to process driver voice commands.'" ios/App/App/Info.plist
+          fi
 
       - name: Install CocoaPods dependencies
         run: |

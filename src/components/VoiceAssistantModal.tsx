@@ -19,7 +19,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [aiSpeechResponse, setAiSpeechResponse] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Web Speech API initialization
+  // Web Speech API initialization with getUserMedia permission prompt
   useEffect(() => {
     if (!isOpen) {
       setIsListening(false);
@@ -27,43 +27,137 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       return;
     }
 
+    let recognition: any = null;
+    let isActive = true;
+
+    const initSpeech = async () => {
+      // 1. Request getUserMedia to prompt iOS/Browser native microphone permission dialog
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Stop track immediately as recognition handles audio capture
+          stream.getTracks().forEach((track) => track.stop());
+        } catch (err: any) {
+          console.warn('getUserMedia mic permission error:', err);
+          if (isActive) {
+            setStatusMessage('Microphone access blocked. Tap the mic button to grant permission or type below.');
+          }
+        }
+      }
+
+      if (!isActive) return;
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          if (!isActive) return;
+          setIsListening(true);
+          setStatusMessage('Listening... Speak now (e.g. "Play Surah Al-Kahf")');
+        };
+
+        recognition.onresult = (event: any) => {
+          if (!isActive) return;
+          const text = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join('');
+          setTranscriptInput(text);
+        };
+
+        recognition.onerror = (event: any) => {
+          if (!isActive) return;
+          setIsListening(false);
+          if (event.error === 'not-allowed') {
+            setStatusMessage('Mic permission notice: blocked by browser/iOS. Tap mic or type below.');
+          } else {
+            setStatusMessage(`Mic notice: ${event.error}. You can also type commands below.`);
+          }
+        };
+
+        recognition.onend = () => {
+          if (!isActive) return;
+          setIsListening(false);
+        };
+
+        try {
+          recognition.start();
+        } catch (err) {
+          // mic already active or blocked
+        }
+      } else {
+        setStatusMessage('Voice recognition not supported in browser. Use typed shortcut commands below.');
+      }
+    };
+
+    initSpeech();
+
+    return () => {
+      isActive = false;
+      if (recognition) {
+        try {
+          recognition.abort();
+        } catch (e) {}
+      }
+    };
+  }, [isOpen]);
+
+  const handleMicClick = async () => {
+    if (transcriptInput.trim()) {
+      handleExecute(transcriptInput);
+      return;
+    }
+
+    // Attempt to explicitly request microphone permission again
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        setStatusMessage('Requesting microphone access...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err: any) {
+        setStatusMessage('Microphone permission denied in iOS/device settings.');
+        return;
+      }
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        setStatusMessage('Listening... Speak now (e.g. "Play Surah Al-Kahf")');
-      };
-
-      recognition.onresult = (event: any) => {
-        const text = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join('');
-        setTranscriptInput(text);
-      };
-
-      recognition.onerror = (event: any) => {
-        setIsListening(false);
-        setStatusMessage(`Mic notice: ${event.error}. You can also type commands below.`);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
       try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsListening(true);
+          setStatusMessage('Listening... Speak now!');
+        };
+
+        recognition.onresult = (event: any) => {
+          const text = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join('');
+          setTranscriptInput(text);
+        };
+
+        recognition.onerror = (event: any) => {
+          setIsListening(false);
+          setStatusMessage(`Mic notice: ${event.error}. Use typed commands below.`);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
         recognition.start();
-      } catch (err) {
-        // mic already active or blocked
+      } catch (e) {
+        console.error('Error starting speech recognition:', e);
       }
-    } else {
-      setStatusMessage('Voice recognition not supported in browser. Use typed shortcut commands below.');
     }
-  }, [isOpen]);
+  };
 
   if (!isOpen) return null;
 
@@ -128,7 +222,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         {/* Glowing Microphone Visualizer */}
         <div className="flex flex-col items-center justify-center my-4">
           <button
-            onClick={() => handleExecute(transcriptInput)}
+            onClick={handleMicClick}
             className={`w-28 h-28 rounded-full flex items-center justify-center transition-all shadow-2xl relative ${
               isListening
                 ? 'bg-emerald-500 text-stone-950 scale-105 shadow-emerald-500/50 animate-pulse'

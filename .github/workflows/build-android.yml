@@ -36,6 +36,12 @@ jobs:
         run: |
           npx cap add android || true
           npx cap sync android
+          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_FILE" ]; then
+            if ! grep -q "android.permission.RECORD_AUDIO" "$MANIFEST_FILE"; then
+              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' "$MANIFEST_FILE"
+            fi
+          fi
 
       - name: Build Android APK
         run: |
